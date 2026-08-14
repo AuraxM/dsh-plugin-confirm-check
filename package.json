@@ -1,0 +1,21 @@
+{
+  "name": "dsh-confirm-mode",
+  "description": "Confirm Mode: task-level permission - one upfront application before permanent changes, then trust-based direction monitoring (never per-file gating)",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-api-remotes"
+      ]
+    }
+  },
+  "license": "MIT"
+}
