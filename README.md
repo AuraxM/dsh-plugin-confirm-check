@@ -9,8 +9,8 @@ complete permission application** - a short description of what it is about to
 do, which code paths it touches, and which mutating capabilities it needs.
 After the user approves, everything inside that direction runs uninterrupted.
 A background observer only compares later actions with the grant and reports
-**drift** through the system prompt. Nothing is ever blocked: Confirm Mode
-trusts the model and controls the overall direction, it does not gate
+**drift** in the periodic summary reminder. Nothing is ever blocked: Confirm
+Mode trusts the model and controls the overall direction, it does not gate
 individual operations.
 
 ## What needs an application
@@ -25,14 +25,31 @@ individual operations.
 
 Drift = a mutating action outside the declared direction (a write outside the
 declared paths, or a mutating command category that was not declared). At 5
-drift events the system prompt asks the agent to check the direction and file
-a fresh application instead of silently widening scope.
+drift events the next summary reminder asks the agent to check the direction
+and file a fresh application instead of silently widening scope.
+
+## Model-facing reminders
+
+There is no permanent prompt section. The mode reaches the model as one-off
+user-role reminders injected at accepted steps (`agent/pre-step`), so each
+reminder is also a durable session event:
+
+| Moment | Injection |
+| --- | --- |
+| Toggle flips off → on | One full briefing (rules + current grant state) |
+| Session starts with the mode on | One full briefing at the first step |
+| Every 5 turns while on | One short summary (grant/drift state, or "nothing filed yet") |
+| Toggle flips on → off | One off-emphasis: do not file applications, proceed normally |
+| Session starts with the mode off | Nothing — exactly like a session without the plugin |
+
+While the mode is off, `mission_permission` short-circuits without asking the
+user (outcome `off`), so a stray call never pops an approval request.
 
 ## Repository layout
 
 ```
 package.json      plugin manifest (dsh.client declaration, exports["./client"])
-lib/index.js      host half: tools, observers, /confirm-mode command, prompt section
+lib/index.js      host half: tools, observers, /confirm-mode command, step reminders
 lib/client.js     client half: the "Confirm Mode: on/off" composer toggle
 ```
 
@@ -73,7 +90,7 @@ profile's patch layer `$HOME\.dsh\profiles\web\cordis.patch.yml`:
 
 Profile boot watches this file (`watchUserPatches`), so the edit hot-reloads
 into the running server — no restart needed. Every session gains the tools,
-the `/confirm-mode` command, the prompt section, and the composer toggle. The
+the `/confirm-mode` command, the step reminders, and the composer toggle. The
 toggle and the grant state are process-wide: switching the mode off in one
 session switches it off for every session.
 
@@ -116,15 +133,16 @@ preset instead; same toggle location, refresh once if it does not show up.
 ### For the user
 
 - Composer toggle `Confirm Mode: on/off` (next to Full access / Read Only).
-  Off = direction monitoring and prompt injection stop (the two model tools
-  remain callable manually).
+  Off = monitoring stops, reminders stop, and `mission_permission`
+  short-circuits without asking (the two model tools remain registered).
 - `/confirm-mode on|off|toggle|status` - the same switch as a command.
 
 ## Configuration
 
 Constants at the top of `lib/index.js`:
 
-- `DRIFT_WARN` (5) - drift events before the prompt asks for a new application.
+- `DRIFT_WARN` (5) - drift events before the summary reminder asks for a new application.
+- `SUMMARY_EVERY` (5) - turns between summary reminders while the mode is on.
 - `DOC_EXTS` - extensions treated as plan/note writes (never monitored).
 - `READ_ONLY_PREFIXES` - command prefixes treated as read-only.
 
