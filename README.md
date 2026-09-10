@@ -127,7 +127,10 @@ preset instead; same toggle location, refresh once if it does not show up.
 - `mission_permission` - file the one complete permission application before
   permanent changes: `summary` (the paragraph the user approves), optional
   `paths` (code/config prefixes), `capabilities` (files-write, commands),
-  `duration`. The user approves or rejects once.
+  `duration`. The user decides once; the tool reports which answer it got:
+  `approved`, `rejected`, `custom` (the user typed an answer of their own),
+  `unanswered` (skipped), `cancelled` (card closed), `delegated` (a subagent
+  cannot ask), or `off`.
 - `permission_status` - read-only view of the current grant and the drift log.
 
 ### For the user
@@ -136,6 +139,32 @@ preset instead; same toggle location, refresh once if it does not show up.
   Off = monitoring stops, reminders stop, and `mission_permission`
   short-circuits without asking (the two model tools remain registered).
 - `/confirm-mode on|off|toggle|status` - the same switch as a command.
+- The application itself is an ordinary question card: pick `Approve` or
+  `Reject`, or type your own answer in the free-text field to answer with
+  conditions, a narrower scope, or a correction. A typed answer replaces the
+  options (the harness's single-select answer rule: free text overrides the
+  selection), and the model receives it verbatim.
+
+### Card presentation
+
+The application renders through the harness's generic question card - the only
+card that offers a free-text answer. That card styles its markdown `detail`
+block for a short note (no heading scale, `margin: 0 2px` inside an unpadded
+body), unlike the plan-review card it replaced (`padding: 12px 16px`, 14px
+type). Two consequences are handled here:
+
+- `buildPlanText` emits no markdown headings: `##`/`###` arrive as full-size
+  headings with 32px outer margins, which dwarf the card's own title and push
+  the options and the free-text field below the fold. The plan is a compact
+  `**Goal** / **Paths** / **Capabilities** / **Scale**` block plus one
+  blockquote line of approval semantics.
+- The client half insets that block to 16px
+  (`[data-question-scroll]>div:first-child:not([role])`), because the harness
+  ships it at 2px while the card's header sits at 24px and its option list at
+  12px. Delete the rule once the harness pads the block itself; the selector is
+  structural, so a harness class-name change only makes it stop matching. The
+  rule rides the same style tag as the toggle, rewritten on every client load,
+  so a hot-reloaded half never renders with a stale stylesheet.
 
 ## Configuration
 
