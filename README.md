@@ -48,77 +48,62 @@ user (outcome `off`), so a stray call never pops an approval request.
 ## Repository layout
 
 ```
-package.json      plugin manifest (dsh.client declaration, exports["./client"])
+package.json      plugin manifest (dsh.bundle.patch, dsh.client, exports["./client"])
+cordis.patch.yml  bundle patch: inserts the host row
 lib/index.js      host half: tools, observers, /confirm-mode command, step reminders
 lib/client.js     client half: the "Confirm Mode: on/off" composer toggle
 ```
 
 ## Installation
 
-Prerequisites: a working dsh install (the `dsh` CLI on PATH, with a web
-profile). The plugin loads as a real package from the profile module fallback
-directory, plus one row in a composition (host profile patch or agent
-preset). Installing the package alone changes nothing — the row placement in
-step 2 decides who gets Confirm Mode. This repository ships no install
-scripts and never writes outside its own files: every mount is a manual row.
+This package is a **profile bundle**: `package.json` declares
+`dsh.bundle.patch`, and `cordis.patch.yml` inserts the host row. One command
+installs it into a profile — it links the package, registers the bundle and
+enables the row — and the change applies immediately through HMR:
 
-### 1. Install the package
-
-Copy this repository into the profile module directory (create it if needed):
-
-```powershell
-New-Item -ItemType Directory -Force "$HOME\.dsh\profiles\node_modules"
-Copy-Item -Recurse . "$HOME\.dsh\profiles\node_modules\dsh-confirm-mode"
+```
+plugin_manager action=install_bundle target=E:\dsh\dsh-plugin-confirm-check
 ```
 
-The bare specifier `dsh-confirm-mode` then resolves from every profile.
+Do not write the profile's `package.json` or `cordis.patch.yml` by hand, and do
+not copy or Junction the package into `$DSH_HOME\profiles\node_modules`.
 
-### 2. Mount the row
+> **Why the old copy/Junction method broke on Desktop 0.2.0:** a package placed
+> or linked in `$DSH_HOME\profiles\node_modules` resolves its `@deepseek-ai/*`
+> peers against that same shared directory, which the Desktop module resolver
+> treats as an **obsolete fallback** and rejects. `install_bundle` links the
+> package under the profile instead, so peers resolve from the app's own
+> install.
 
-The row publishes no service (it only consumes the host registries
-`tools`, `systemPrompt`, `commands`, `userQuestions`, `agents`), so it needs
-no `isolate` realm. Two placements are supported:
+### Alternative: an agent preset (per session)
 
-**Host plane — all sessions** (global). Add an `insert` entry to the web
-profile's patch layer `$HOME\.dsh\profiles\web\cordis.patch.yml`:
-
-```yaml
-- insert:
-    - id: confirm-mode
-      name: dsh-confirm-mode
-```
-
-Profile boot watches this file (`watchUserPatches`), so the edit hot-reloads
-into the running server — no restart needed. Every session gains the tools,
-the `/confirm-mode` command, the step reminders, and the composer toggle. The
-toggle and the grant state are process-wide: switching the mode off in one
-session switches it off for every session.
-
-**Agent preset — per session.** Append the same row to an existing user
-preset at `$HOME\.dsh\.agent-presets\<id>\agent.cordis.yml`, or copy the
-shipped `cordis` preset and edit the copy. Watch out for the picker: the
-session-mode picker is the preset ROSTER — every preset directory appears
-there as a session mode labeled by its `preset.yml` `name`. Installing this
-package never adds a mode by itself; only a preset directory does. Create a
-standalone preset (with its own `preset.yml`) only if you want that extra
-picker entry on purpose.
+To give Confirm Mode to one preset instead of the whole profile, add the same
+row to an existing user preset at
+`$HOME\.dsh\.agent-presets\<id>\agent.cordis.yml`, or copy the shipped `cordis`
+preset and edit the copy. Watch out for the picker: the session-mode picker is
+the preset ROSTER — every preset directory appears there as a session mode
+labeled by its `preset.yml` `name`. Create a standalone preset (with its own
+`preset.yml`) only if you want that extra picker entry on purpose.
 
 Validate the composition with the harness preset tools (`standingKeyFor`)
 before relying on it.
 
-### 3. Verify the mount, then start
+### Verify
 
-Host-plane mount — verify against the live server before refreshing the page:
+- the row `include:confirm-mode` reports `enabled: true, fiberPhase: "active"`
+  (`plugin_manager action=list_plugins`), then
+- refresh the browser once: the `Confirm Mode: on/off` toggle appears next to
+  the access control (Full access / Read Only).
 
-- the served web root embeds `window.__DSH_BOOT__`; its `entries` list must
-  contain id `dsh-confirm-mode` (the entry id is the PACKAGE name, not the
-  row id), and
-- `GET /plugins/dsh-confirm-mode/client.js` must return 200.
+The toggle and the grant state are process-wide: switching the mode off in one
+session switches it off for every session.
+session-mode picker is the preset ROSTER — every preset directory appears
+there as a session mode labeled by its `preset.yml` `name`. Installing this
+package never adds a mode by itself; only a preset directory does.
 
-Then refresh the browser once: the `Confirm Mode: on/off` toggle appears next
-to the access control (Full access / Read Only), and Settings → Plugins lists
-`dsh-confirm-mode` as active. For a preset mount, start a session on that
-preset instead; same toggle location, refresh once if it does not show up.
+Validate the composition with the harness preset tools (`standingKeyFor`)
+before relying on it. For a preset mount, start a session on that preset and
+refresh once if the toggle does not show up.
 
 ## Usage
 

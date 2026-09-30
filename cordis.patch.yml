@@ -1,0 +1,5 @@
+# Confirm Mode bundle: mounts the host row (tools, commands, userQuestions,
+# agents) that serves the composer toggle in the client half.
+- insert:
+    - id: confirm-mode
+      name: dsh-confirm-mode
